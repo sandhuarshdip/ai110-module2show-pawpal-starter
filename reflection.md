@@ -8,6 +8,7 @@
     - Set preference for tasks
     - generate a daily schedule based on time contraints, priority, and owner preference
 - Briefly describe your initial UML design.
+    - My uml intends to show that there will be three sub methods, pet, owner, and task that will all be used in the main method to generate a schedule for the owner to follow.
 - What classes did you include, and what responsibilities did you assign to each?
     + addPet()
     + createTask()
@@ -26,7 +27,7 @@
 
 - Did your design change during implementation?
 - If yes, describe at least one change and why you made it.
-
+    - yes, when asking the AI to suggest changes it mentioned that my current skeleton did not have any time contraint variable and also no real link from task to pet in case an owner has multiple pets. Thus i aksed it to implement these changes to my skeleton.
 ---
 
 ## 2. Scheduling Logic and Tradeoffs

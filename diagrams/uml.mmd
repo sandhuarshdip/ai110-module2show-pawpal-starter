@@ -3,25 +3,37 @@ classDiagram
         +String ownerName
         +String preference
         +addPet()
+        +getAllTasks()
+        +createSchedule(availableMinutes)
     }
 
     class Pet {
         +String petName
         +String petBreed
+        +addTask(task)
     }
 
     class Task {
-        +String taskName
+        +String description
         +int timeToComplete
         +String priority
+        +String frequency
+        +bool completed
+        +Pet pet
         +createTask()
+        +markComplete()
+        +markIncomplete()
     }
 
     class Schedule {
-        +createSchedule()
+        +int availableMinutes
+        +List~Task~ unscheduledTasks
+        +createSchedule(owner)
     }
 
     Owner "1" --> "0..*" Pet : has
     Pet "1" --> "0..*" Task : has care tasks
+    Task "0..*" --> "1" Pet : belongs to
     Schedule "1" --> "0..*" Task : includes
     Owner "1" --> "0..*" Schedule : receives plans
+    Schedule ..> Owner : retrieves all pet tasks
