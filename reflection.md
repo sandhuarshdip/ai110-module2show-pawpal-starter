@@ -3,9 +3,24 @@
 ## 1. System Design
 
 **a. Initial design**
-
+- Three Core actions:
+    - Add A pet and owner
+    - Set preference for tasks
+    - generate a daily schedule based on time contraints, priority, and owner preference
 - Briefly describe your initial UML design.
 - What classes did you include, and what responsibilities did you assign to each?
+    + addPet()
+    + createTask()
+    + createSchedule()
+    + owner()
+    - ownerName
+    - petName
+    - petBreed
+    - petOwner
+    - taskName
+    - timeToComplete
+    - perference
+    - priority
 
 **b. Design changes**
 
