@@ -198,3 +198,77 @@ def test_completing_daily_task_lists_new_instance_for_tomorrow() -> None:
 
     assert schedule.tasks_by_date[date.today()] == []
     assert schedule.tasks_by_date[date.today() + timedelta(days=1)] == [next_task]
+
+
+def test_schedule_returns_tasks_in_chronological_date_order() -> None:
+    today = date.today()
+    owner = Owner("Jordan", "Morning care")
+    pet = Pet("Mochi", "Shiba Inu")
+    overdue_task = Task(
+        "Overdue grooming", 20, "medium", due_date=today - timedelta(days=1)
+    )
+    today_task = Task("Today's walk", 30, "medium", due_date=today)
+    tomorrow_task = Task(
+        "Tomorrow's medication", 5, "medium", due_date=today + timedelta(days=1)
+    )
+    future_task = Task(
+        "Future checkup", 15, "medium", due_date=today + timedelta(days=2)
+    )
+    for task in (overdue_task, today_task, tomorrow_task, future_task):
+        pet.add_task(task)
+    owner.add_pet(pet)
+
+    schedule = Schedule()
+    schedule.create_schedule(owner, today=today)
+
+    assert list(schedule.tasks_by_date) == [today, today + timedelta(days=1)]
+    assert schedule.tasks_by_date[today] == [overdue_task, today_task]
+    assert schedule.tasks_by_date[today + timedelta(days=1)] == [tomorrow_task]
+
+
+def test_schedule_preserves_insertion_order_for_equal_priority_tasks() -> None:
+    today = date.today()
+    owner = Owner("Jordan", "Morning care")
+    pet = Pet("Mochi", "Shiba Inu")
+    first_task = Task("Morning walk", 30, "high", due_date=today)
+    second_task = Task("Medication", 5, "high", due_date=today)
+    pet.add_task(first_task)
+    pet.add_task(second_task)
+    owner.add_pet(pet)
+
+    schedule = Schedule()
+    schedule.create_schedule(owner, today=today)
+
+    assert schedule.tasks_by_date[today] == [first_task, second_task]
+
+
+def test_schedule_flags_duplicate_tasks_with_the_same_scheduled_time() -> None:
+    owner = Owner("Jordan", "Morning care")
+    pet = Pet("Mochi", "Shiba Inu")
+    first_task = Task("Medication", 5, "high", scheduled_time=time(8, 0))
+    duplicate_task = Task("Medication", 5, "high", scheduled_time=time(8, 0))
+    pet.add_task(first_task)
+    pet.add_task(duplicate_task)
+    owner.add_pet(pet)
+
+    warnings = owner.create_schedule().get_conflict_warnings()
+
+    assert len(warnings) == 1
+    assert "Medication for Mochi; Medication for Mochi" in warnings[0]
+
+
+def test_schedule_does_not_return_completed_tasks() -> None:
+    today = date.today()
+    owner = Owner("Jordan", "Morning care")
+    pet = Pet("Mochi", "Shiba Inu")
+    incomplete_task = Task("Morning walk", 30, "medium", due_date=today)
+    completed_task = Task("Medication", 5, "high", due_date=today)
+    completed_task.mark_complete()
+    pet.add_task(incomplete_task)
+    pet.add_task(completed_task)
+    owner.add_pet(pet)
+
+    schedule = Schedule()
+    schedule.create_schedule(owner, today=today)
+
+    assert schedule.tasks_by_date[today] == [incomplete_task]
