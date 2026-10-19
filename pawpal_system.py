@@ -3,6 +3,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import date, time, timedelta
+
+
+PRIORITY_ORDER = {"high": 0, "medium": 1, "low": 2}
 
 
 @dataclass(eq=False)
@@ -21,9 +25,34 @@ class Owner:
         """Return every task belonging to this owner's pets."""
         return [task for pet in self.pets for task in pet.tasks]
 
-    def create_schedule(self, available_minutes: int) -> Schedule:
-        """Build and store a schedule using the given available time."""
-        schedule = Schedule(available_minutes=available_minutes)
+    def filter_tasks(
+        self,
+        completed: bool | None = None,
+        pet_name: str | None = None,
+    ) -> list[Task]:
+        """Filter this owner's tasks by completion status and/or pet name."""
+        normalized_pet_name = (
+            pet_name.casefold().strip() if pet_name is not None else None
+        )
+        if normalized_pet_name == "":
+            raise ValueError("Pet name cannot be empty.")
+
+        return [
+            task
+            for task in self.get_all_tasks()
+            if (completed is None or task.completed is completed)
+            and (
+                normalized_pet_name is None
+                or (
+                    task.pet is not None
+                    and task.pet.pet_name.casefold() == normalized_pet_name
+                )
+            )
+        ]
+
+    def create_schedule(self) -> Schedule:
+        """Build and store a schedule for today and the following day."""
+        schedule = Schedule()
         schedule.create_schedule(self)
         self.schedules.append(schedule)
         return schedule
@@ -49,20 +78,20 @@ class Task:
     description: str
     time_to_complete: int
     priority: str
-    frequency: str = "daily"
+    daily: bool = False
     completed: bool = False
     pet: Pet | None = field(default=None, repr=False)
+    due_date: date = field(default_factory=date.today)
+    scheduled_time: time | None = None
 
     def __post_init__(self) -> None:
-        """Validate the task description, duration, priority, and frequency."""
+        """Validate the task description, duration, and priority."""
         if not self.description.strip():
             raise ValueError("Task description cannot be empty.")
         if self.time_to_complete <= 0:
             raise ValueError("Task duration must be greater than zero minutes.")
         if self.priority.lower() not in {"high", "medium", "low"}:
             raise ValueError(f"Unsupported task priority: {self.priority}")
-        if not self.frequency.strip():
-            raise ValueError("Task frequency cannot be empty.")
 
     @classmethod
     def create_task(
@@ -70,14 +99,38 @@ class Task:
         description: str,
         time_to_complete: int,
         priority: str,
-        frequency: str = "daily",
+        daily: bool = False,
+        scheduled_time: time | None = None,
     ) -> Task:
         """Create a task with the supplied details."""
-        return cls(description, time_to_complete, priority, frequency)
+        return cls(
+            description,
+            time_to_complete,
+            priority,
+            daily=daily,
+            scheduled_time=scheduled_time,
+        )
 
-    def mark_complete(self) -> None:
-        """Mark this task as completed."""
+    def mark_complete(self) -> Task | None:
+        """Complete this task and create tomorrow's instance when it is daily."""
+        if self.completed:
+            return None
+
         self.completed = True
+        if not self.daily:
+            return None
+
+        next_task = Task(
+            description=self.description,
+            time_to_complete=self.time_to_complete,
+            priority=self.priority,
+            daily=True,
+            due_date=date.today() + timedelta(days=1),
+            scheduled_time=self.scheduled_time,
+        )
+        if self.pet is not None:
+            self.pet.add_task(next_task)
+        return next_task
 
     def mark_incomplete(self) -> None:
         """Mark this task as not completed."""
@@ -86,36 +139,56 @@ class Task:
 
 @dataclass(eq=False)
 class Schedule:
-    available_minutes: int
-    tasks: list[Task] = field(default_factory=list)
-    unscheduled_tasks: list[Task] = field(default_factory=list)
+    tasks_by_date: dict[date, list[Task]] = field(default_factory=dict)
 
-    def __post_init__(self) -> None:
-        """Ensure the available scheduling time is not negative."""
-        if self.available_minutes < 0:
-            raise ValueError("Available time cannot be negative.")
+    def create_schedule(
+        self,
+        owner: Owner,
+        today: date | None = None,
+    ) -> dict[date, list[Task]]:
+        """List incomplete tasks due today and tomorrow, ordered by priority."""
+        schedule_start = today or date.today()
+        tomorrow = schedule_start + timedelta(days=1)
+        tasks_by_date = {
+            schedule_start: [],
+            tomorrow: [],
+        }
 
-    def create_schedule(self, owner: Owner) -> list[Task]:
-        """Select incomplete owner tasks by priority within the time limit."""
-        tasks = [task for task in owner.get_all_tasks() if not task.completed]
-        priority_order = {"high": 0, "medium": 1, "low": 2}
-        selected_tasks: list[Task] = []
-        unscheduled_tasks: list[Task] = []
-        remaining_minutes = self.available_minutes
+        for task in owner.get_all_tasks():
+            if task.completed:
+                continue
+            due_day = schedule_start if task.due_date <= schedule_start else task.due_date
+            if due_day in tasks_by_date:
+                tasks_by_date[due_day].append(task)
 
-        for task in sorted(
-            tasks,
-            key=lambda item: (
-                priority_order[item.priority.lower()],
-                item.time_to_complete,
-            ),
-        ):
-            if task.time_to_complete <= remaining_minutes:
-                selected_tasks.append(task)
-                remaining_minutes -= task.time_to_complete
-            else:
-                unscheduled_tasks.append(task)
+        for tasks in tasks_by_date.values():
+            tasks.sort(key=lambda task: PRIORITY_ORDER[task.priority.lower()])
 
-        self.tasks = selected_tasks
-        self.unscheduled_tasks = unscheduled_tasks
-        return self.tasks
+        self.tasks_by_date = tasks_by_date
+        return self.tasks_by_date
+
+    def get_conflict_warnings(self) -> list[str]:
+        """Return warnings for multiple tasks with the same date and start time."""
+        warnings = []
+        for scheduled_date, tasks in self.tasks_by_date.items():
+            tasks_by_time: dict[time, list[Task]] = {}
+            for task in tasks:
+                if task.scheduled_time is not None:
+                    tasks_by_time.setdefault(task.scheduled_time, []).append(task)
+
+            for scheduled_time, conflicting_tasks in tasks_by_time.items():
+                if len(conflicting_tasks) < 2:
+                    continue
+
+                task_names = [
+                    f"{task.description} for "
+                    f"{task.pet.pet_name if task.pet is not None else 'an unassigned pet'}"
+                    for task in conflicting_tasks
+                ]
+                warnings.append(
+                    f"Warning: Scheduling conflict on {scheduled_date.isoformat()} "
+                    f"at {scheduled_time.strftime('%I:%M %p').lstrip('0')}: "
+                    f"{'; '.join(task_names)}."
+                )
+
+        return warnings

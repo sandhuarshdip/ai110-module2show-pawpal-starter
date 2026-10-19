@@ -4,7 +4,8 @@ classDiagram
         +String preference
         +addPet()
         +getAllTasks()
-        +createSchedule(availableMinutes)
+        +filterTasks(completed, petName)
+        +createSchedule()
     }
 
     class Pet {
@@ -17,7 +18,9 @@ classDiagram
         +String description
         +int timeToComplete
         +String priority
-        +String frequency
+        +bool daily
+        +Date dueDate
+        +Time scheduledTime
         +bool completed
         +Pet pet
         +createTask()
@@ -26,14 +29,14 @@ classDiagram
     }
 
     class Schedule {
-        +int availableMinutes
-        +List~Task~ unscheduledTasks
+        +Map~Date, List~Task~~ tasksByDate
         +createSchedule(owner)
+        +getConflictWarnings()
     }
 
     Owner "1" --> "0..*" Pet : has
     Pet "1" --> "0..*" Task : has care tasks
     Task "0..*" --> "1" Pet : belongs to
-    Schedule "1" --> "0..*" Task : includes
+    Schedule "1" --> "0..*" Task : lists by due date
     Owner "1" --> "0..*" Schedule : receives plans
     Schedule ..> Owner : retrieves all pet tasks

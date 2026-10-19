@@ -18,6 +18,7 @@ Your final app should:
 
 - Let a user enter basic owner + pet info
 - Let a user add/edit tasks (duration + priority at minimum)
+- Let a user mark tasks complete; completed tasks are excluded from new schedules
 - Generate a daily schedule/plan based on constraints and priorities
 - Display the plan clearly (and ideally explain the reasoning)
 - Include tests for the most important scheduling behaviors
@@ -72,14 +73,13 @@ Sample test output:
 
 ## 📐 Smarter Scheduling
 
-> Fill in once you've implemented scheduling logic.
-
 | Feature | Method(s) | Notes |
 |---------|-----------|-------|
-| Task sorting | | e.g., by priority, duration |
-| Filtering | | e.g., skip tasks if time runs out |
-| Conflict handling | | e.g., overlapping time slots |
-| Recurring tasks | | e.g., daily vs. weekly |
+| Task sorting | `Schedule.create_schedule` | Sorts tasks by priority: high, then medium, then low. Tasks with equal priority keep their existing order. Sorting does not assign start times. |
+| Schedule dates and completion filtering | `Owner.create_schedule`, `Schedule.create_schedule` | Builds lists for today and tomorrow, excluding completed tasks. Overdue tasks are included in today's list; tasks due after tomorrow are not included. |
+| Task filtering | `Owner.get_all_tasks`, `Owner.filter_tasks` | Retrieves all tasks across the owner's pets, then optionally filters by completion status, pet name, or both. Pet names are matched case-insensitively after trimming whitespace; an empty pet name raises `ValueError`. |
+| Time conflict detection | `Schedule.get_conflict_warnings` | On each scheduled date, warns when at least two tasks have the exact same non-empty scheduled start time, including tasks for the same or different pets. It does not detect overlapping durations. |
+| Daily recurring tasks | `Task.mark_complete`, `Pet.add_task` | Completing a daily task creates and attaches a new, incomplete instance due tomorrow, retaining its description, duration, priority, daily setting, and scheduled time. Completing it again does not create another instance; non-daily tasks do not recur. |
 
 ## 📸 Demo Walkthrough
 
