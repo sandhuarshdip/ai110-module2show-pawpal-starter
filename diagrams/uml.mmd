@@ -1,42 +1,47 @@
 classDiagram
     class Owner {
-        +String ownerName
-        +String preference
-        +addPet()
-        +getAllTasks()
-        +filterTasks(completed, petName)
-        +createSchedule()
+        +str owner_name
+        +str preference
+        +list~Pet~ pets
+        +list~Schedule~ schedules
+        +add_pet(pet: Pet) None
+        +get_all_tasks() list~Task~
+        +filter_tasks(completed: bool?, pet_name: str?) list~Task~
+        +create_schedule() Schedule
     }
 
     class Pet {
-        +String petName
-        +String petBreed
-        +addTask(task)
+        +str pet_name
+        +str pet_breed
+        +list~Task~ tasks
+        +add_task(task: Task) None
     }
 
     class Task {
-        +String description
-        +int timeToComplete
-        +String priority
+        +str description
+        +int time_to_complete
+        +str priority
         +bool daily
-        +Date dueDate
-        +Time scheduledTime
         +bool completed
-        +Pet pet
-        +createTask()
-        +markComplete()
-        +markIncomplete()
+        +Pet? pet
+        +date due_date
+        +time? scheduled_time
+        +create_task(description, time_to_complete, priority, daily, scheduled_time)$ Task
+        +mark_complete() Task?
+        +mark_incomplete() None
     }
 
     class Schedule {
-        +Map~Date, List~Task~~ tasksByDate
-        +createSchedule(owner)
-        +getConflictWarnings()
+        +dict~date, list~Task~~ tasks_by_date
+        +create_schedule(owner: Owner, today: date?) dict~date, list~Task~~
+        +get_conflict_warnings() list~str~
     }
 
-    Owner "1" --> "0..*" Pet : has
-    Pet "1" --> "0..*" Task : has care tasks
-    Task "0..*" --> "1" Pet : belongs to
-    Schedule "1" --> "0..*" Task : lists by due date
-    Owner "1" --> "0..*" Schedule : receives plans
-    Schedule ..> Owner : retrieves all pet tasks
+    Owner "1" --> "0..*" Pet : pets
+    Owner "1" --> "0..*" Schedule : schedules
+    Pet "0..1" <-- "0..*" Task : assigned pet / tasks
+    Schedule "1" --> "0..*" Task : tasks_by_date
+
+    Owner ..> Schedule : creates and stores
+    Schedule ..> Owner : gets tasks via get_all_tasks()
+    Task ..> Pet : adds next daily task via add_task()

@@ -69,7 +69,19 @@ Sample test output:
 
 ```
 # Paste your pytest output here
+=========================================== test session starts ===========================================
+platform win32 -- Python 3.12.10, pytest-9.1.1, pluggy-1.6.0
+rootdir: C:\Users\Sandh\Documents\GitHub\ai110-module2show-pawpal-starter
+plugins: anyio-4.14.2
+collected 18 items                                                                                         
+
+tests\test_app.py ..                                                                                 [ 11%]
+tests\test_pawpal.py ................                                                                [100%]
+
+=========================================== 18 passed in 6.46s ============================================
+PS C:\Users\Sandh\Documents\GitHub\ai110-module2show-pawpal-starter> 
 ```
+"Confidence Level: 5 Stars"
 
 ## 📐 Smarter Scheduling
 
